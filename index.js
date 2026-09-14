@@ -1,38 +1,47 @@
-// GOD SLAYER S-TIER VENDETTA/REVENGE MIC INJECTION
 const { findByProps } = vendetta.metro;
 const { after } = vendetta.patcher;
 const { showToast } = vendetta.ui.toasts;
 
 const MediaEngine = findByProps("getMediaEngine");
 const VoiceSettingsStore = findByProps("getEchoCancellation", "getNoiseSuppression");
-const AudioActionCreators = findByProps("setEchoCancellation", "setNoiseSuppression");
+const AudioActionCreators = findByProps("setEchoCancellation", "setNoiseSuppression", "setAutomaticGainControl");
 
 let patches = [];
 
 module.exports = {
     onLoad: () => {
-        showToast("🎙️ GOD MIC ACTIVE: S-TIER", { source: 3 });
+        showToast("⚙️ GOD MIC: System Initializing...", { source: 1 });
 
         if (MediaEngine && AudioActionCreators) {
             patches.push(
                 after("getMediaEngine", MediaEngine, (_, engine) => {
-                    if (!engine) return;
-
+                    if (!engine || engine.__godMicPatched) return engine;
+                    
+                    engine.__godMicPatched = true; // Prevent double patching
                     const origConnect = engine.connect;
-                    engine.connect = function (...args) {
-                        showToast("🎙️ BYPASSING AUDIO COMPRESSION...", { source: 3 });
 
-                        // Nuke all limiters, compressions, and filters
-                        AudioActionCreators.setNoiseSuppression(false); // Kills Krisp
-                        AudioActionCreators.setEchoCancellation(false); // Kills Echo cutting
-                        AudioActionCreators.setAutomaticGainControl(false); // +15dB RAW GAIN BOOST
-                        AudioActionCreators.setNoiseCancellation(false);
+                    // THIS FIRES EXACTLY WHEN YOU JOIN A VC
+                    engine.connect = function (...args) {
                         
-                        // Lock to raw threshold so words don't get cut off
-                        AudioActionCreators.setMode("VOICE_ACTIVITY", {
-                            threshold: -90, 
-                            autoThreshold: false
-                        });
+                        // HUGE IMPLEMENTATION TOASTS
+                        showToast("🎙️ GOD TIER GAIN CONNECTED!", { source: 3 });
+                        showToast("⚡ Bypassing Limiters (+15dB Raw Mode)", { source: 3 });
+
+                        try {
+                            // Nuke all mobile limiters and compressions
+                            AudioActionCreators.setNoiseSuppression(false);
+                            AudioActionCreators.setEchoCancellation(false);
+                            AudioActionCreators.setAutomaticGainControl(false); // The +15dB God Boost
+                            AudioActionCreators.setNoiseCancellation(false);
+                            
+                            // Lock Voice Activity to catch every whisper
+                            AudioActionCreators.setMode("VOICE_ACTIVITY", {
+                                threshold: -90, 
+                                autoThreshold: false
+                            });
+                        } catch (e) {
+                            console.log("GodMic settings error:", e);
+                        }
 
                         return origConnect.apply(this, args);
                     };
@@ -41,19 +50,22 @@ module.exports = {
             );
         }
 
-        // Lock the settings so Discord can't turn them back on in the background
+        // Lock settings so Discord cannot silently revert them in the background
         if (VoiceSettingsStore) {
             patches.push(after("getEchoCancellation", VoiceSettingsStore, () => false));
             patches.push(after("getNoiseSuppression", VoiceSettingsStore, () => false));
             patches.push(after("getAutomaticGainControl", VoiceSettingsStore, () => false));
+            patches.push(after("getNoiseCancellation", VoiceSettingsStore, () => false));
             patches.push(after("getMode", VoiceSettingsStore, () => {
                 return { mode: "VOICE_ACTIVITY", options: { threshold: -90, autoThreshold: false } };
             }));
         }
+        
+        showToast("✅ GOD MIC: Ready for VC.", { source: 3 });
     },
 
     onUnload: () => {
         patches.forEach(unpatch => unpatch());
-        showToast("🎙️ God Mic Disabled. Back to mortal.", { source: 2 });
+        showToast("🎙️ God Mic: Disconnected. Mortal mode.", { source: 2 });
     }
 };
