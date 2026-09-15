@@ -1,0 +1,9 @@
+{
+    "name": "GodMic S-Tier",
+    "description": "Professional Audio Bypass with native TSX Settings UI.",
+    "authors": [{"name": "GodSlayer", "id": "1"}],
+    "main": "src/index.ts",
+    "vendetta": {
+        "icon": "ic_mic_white_24dp"
+    }
+}
