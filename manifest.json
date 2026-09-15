@@ -1,9 +1,0 @@
-{
-    "name": "GodMic S-Tier",
-    "description": "Bypasses Discord's audio limiters. Forces max gain, disables AGC.",
-    "authors": [{"name": "GodSlayer", "id": "1"}],
-    "main": "index.ts",
-    "vendetta": {
-        "icon": "ic_mic_white_24dp"
-    }
-}
