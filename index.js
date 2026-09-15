@@ -1,48 +1,46 @@
-const { findByProps } = vendetta.metro;
-const { after } = vendetta.patcher;
-const { showToast } = vendetta.ui.toasts;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 
-const MediaEngine = findByProps("getMediaEngine");
-const VoiceSettingsStore = findByProps("getEchoCancellation", "getNoiseSuppression");
-const AudioActionCreators = findByProps("setEchoCancellation", "setNoiseSuppression", "setAutomaticGainControl");
+// Tap directly into Vendetta's native global matrix
+const metro = window.vendetta.metro;
+const patcher = window.vendetta.patcher;
+const toasts = window.vendetta.ui.toasts;
+
+const MediaEngine = metro.findByProps("getMediaEngine");
+const VoiceSettingsStore = metro.findByProps("getEchoCancellation", "getNoiseSuppression");
+const AudioActionCreators = metro.findByProps("setEchoCancellation", "setAutomaticGainControl");
 
 let patches = [];
 
-module.exports = {
-    onLoad: () => {
-        showToast("⚙️ GOD MIC: System Initializing...", { source: 1 });
+exports.default = {
+    onLoad: function() {
+        toasts.showToast("⚙️ GOD MIC: Bypassing Audio Engine...", { source: 1 });
 
         if (MediaEngine && AudioActionCreators) {
             patches.push(
-                after("getMediaEngine", MediaEngine, (_, engine) => {
+                patcher.after("getMediaEngine", MediaEngine, function(_, engine) {
                     if (!engine || engine.__godMicPatched) return engine;
+                    engine.__godMicPatched = true;
                     
-                    engine.__godMicPatched = true; // Prevent double patching
                     const origConnect = engine.connect;
-
-                    // THIS FIRES EXACTLY WHEN YOU JOIN A VC
-                    engine.connect = function (...args) {
-                        
-                        // HUGE IMPLEMENTATION TOASTS
-                        showToast("🎙️ GOD TIER GAIN CONNECTED!", { source: 3 });
-                        showToast("⚡ Bypassing Limiters (+15dB Raw Mode)", { source: 3 });
+                    
+                    // THIS TRIGGERS THE SECOND YOU JOIN VC
+                    engine.connect = function(...args) {
+                        toasts.showToast("🎙️ GOD TIER GAIN CONNECTED!", { source: 3 });
+                        toasts.showToast("⚡ +15dB Raw Podcast Mode Active", { source: 3 });
 
                         try {
-                            // Nuke all mobile limiters and compressions
+                            // Shred the limiters
                             AudioActionCreators.setNoiseSuppression(false);
                             AudioActionCreators.setEchoCancellation(false);
-                            AudioActionCreators.setAutomaticGainControl(false); // The +15dB God Boost
+                            AudioActionCreators.setAutomaticGainControl(false);
                             AudioActionCreators.setNoiseCancellation(false);
-                            
-                            // Lock Voice Activity to catch every whisper
                             AudioActionCreators.setMode("VOICE_ACTIVITY", {
                                 threshold: -90, 
                                 autoThreshold: false
                             });
-                        } catch (e) {
-                            console.log("GodMic settings error:", e);
-                        }
-
+                        } catch(e) {}
+                        
                         return origConnect.apply(this, args);
                     };
                     return engine;
@@ -50,22 +48,20 @@ module.exports = {
             );
         }
 
-        // Lock settings so Discord cannot silently revert them in the background
         if (VoiceSettingsStore) {
-            patches.push(after("getEchoCancellation", VoiceSettingsStore, () => false));
-            patches.push(after("getNoiseSuppression", VoiceSettingsStore, () => false));
-            patches.push(after("getAutomaticGainControl", VoiceSettingsStore, () => false));
-            patches.push(after("getNoiseCancellation", VoiceSettingsStore, () => false));
-            patches.push(after("getMode", VoiceSettingsStore, () => {
+            patches.push(patcher.after("getEchoCancellation", VoiceSettingsStore, () => false));
+            patches.push(patcher.after("getNoiseSuppression", VoiceSettingsStore, () => false));
+            patches.push(patcher.after("getAutomaticGainControl", VoiceSettingsStore, () => false));
+            patches.push(patcher.after("getMode", VoiceSettingsStore, () => {
                 return { mode: "VOICE_ACTIVITY", options: { threshold: -90, autoThreshold: false } };
             }));
         }
         
-        showToast("✅ GOD MIC: Ready for VC.", { source: 3 });
+        toasts.showToast("✅ GOD MIC: System Online. Join a VC.", { source: 3 });
     },
-
-    onUnload: () => {
-        patches.forEach(unpatch => unpatch());
-        showToast("🎙️ God Mic: Disconnected. Mortal mode.", { source: 2 });
+    
+    onUnload: function() {
+        patches.forEach(p => p());
+        toasts.showToast("🎙️ God Mic: Disabled.", { source: 2 });
     }
 };
