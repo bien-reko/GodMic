@@ -1,36 +1,32 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+import { findByProps } from "@vendetta/metro";
+import { after } from "@vendetta/patcher";
+import { showToast } from "@vendetta/ui/toasts";
 
-// Tap directly into Vendetta's native global matrix
-const metro = window.vendetta.metro;
-const patcher = window.vendetta.patcher;
-const toasts = window.vendetta.ui.toasts;
+const MediaEngine = findByProps("getMediaEngine");
+const VoiceSettingsStore = findByProps("getEchoCancellation", "getNoiseSuppression");
+const AudioActionCreators = findByProps("setEchoCancellation", "setAutomaticGainControl");
 
-const MediaEngine = metro.findByProps("getMediaEngine");
-const VoiceSettingsStore = metro.findByProps("getEchoCancellation", "getNoiseSuppression");
-const AudioActionCreators = metro.findByProps("setEchoCancellation", "setAutomaticGainControl");
+let patches: Function[] = [];
 
-let patches = [];
-
-exports.default = {
-    onLoad: function() {
-        toasts.showToast("⚙️ GOD MIC: Bypassing Audio Engine...", { source: 1 });
+export default {
+    onLoad: () => {
+        showToast("⚙️ GOD MIC: TS Engine Compiling...", { source: 1 });
 
         if (MediaEngine && AudioActionCreators) {
             patches.push(
-                patcher.after("getMediaEngine", MediaEngine, function(_, engine) {
+                after("getMediaEngine", MediaEngine, (_, engine: any) => {
                     if (!engine || engine.__godMicPatched) return engine;
                     engine.__godMicPatched = true;
                     
                     const origConnect = engine.connect;
                     
                     // THIS TRIGGERS THE SECOND YOU JOIN VC
-                    engine.connect = function(...args) {
-                        toasts.showToast("🎙️ GOD TIER GAIN CONNECTED!", { source: 3 });
-                        toasts.showToast("⚡ +15dB Raw Podcast Mode Active", { source: 3 });
+                    engine.connect = function(this: any, ...args: any[]) {
+                        showToast("🎙️ GOD TIER GAIN CONNECTED!", { source: 3 });
+                        showToast("⚡ +15dB Raw Podcast Mode Active", { source: 3 });
 
                         try {
-                            // Shred the limiters
+                            // Shred the limiters natively
                             AudioActionCreators.setNoiseSuppression(false);
                             AudioActionCreators.setEchoCancellation(false);
                             AudioActionCreators.setAutomaticGainControl(false);
@@ -39,7 +35,9 @@ exports.default = {
                                 threshold: -90, 
                                 autoThreshold: false
                             });
-                        } catch(e) {}
+                        } catch(e) {
+                            console.error("GodMic Error:", e);
+                        }
                         
                         return origConnect.apply(this, args);
                     };
@@ -49,19 +47,19 @@ exports.default = {
         }
 
         if (VoiceSettingsStore) {
-            patches.push(patcher.after("getEchoCancellation", VoiceSettingsStore, () => false));
-            patches.push(patcher.after("getNoiseSuppression", VoiceSettingsStore, () => false));
-            patches.push(patcher.after("getAutomaticGainControl", VoiceSettingsStore, () => false));
-            patches.push(patcher.after("getMode", VoiceSettingsStore, () => {
+            patches.push(after("getEchoCancellation", VoiceSettingsStore, () => false));
+            patches.push(after("getNoiseSuppression", VoiceSettingsStore, () => false));
+            patches.push(after("getAutomaticGainControl", VoiceSettingsStore, () => false));
+            patches.push(after("getMode", VoiceSettingsStore, () => {
                 return { mode: "VOICE_ACTIVITY", options: { threshold: -90, autoThreshold: false } };
             }));
         }
         
-        toasts.showToast("✅ GOD MIC: System Online. Join a VC.", { source: 3 });
+        showToast("✅ GOD MIC: TS System Online. Join a VC.", { source: 3 });
     },
     
-    onUnload: function() {
-        patches.forEach(p => p());
-        toasts.showToast("🎙️ God Mic: Disabled.", { source: 2 });
+    onUnload: () => {
+        patches.forEach(unpatch => unpatch());
+        showToast("🎙️ God Mic: Disabled.", { source: 2 });
     }
 };
