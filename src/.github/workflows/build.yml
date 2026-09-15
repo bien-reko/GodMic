@@ -1,0 +1,27 @@
+name: GodMic Builder
+on:
+  push:
+    branches: [ "main" ]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build plugin
+        run: npm run build
+      - name: Push to build branch
+        run: |
+          cd dist
+          git init
+          git config user.name "GodSlayer-Bot"
+          git config user.email "bot@godslayer.com"
+          git add .
+          git commit -m "🚀 Forging GodMic Output"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:build
